@@ -15,8 +15,9 @@ public class ex02_M1 {
           int number_of_power_traces = 10;
           String filename =args[0] ;
           String difficulty ="1";
-              String serverURL = "http://aoi.ise.bgu.ac.il/encrypt?user=" + user + "&difficulty="+ difficulty;
-    		//Create the file
+          String serverURL = "http://aoi.ise.bgu.ac.il/encrypt?user=" + user + "&difficulty="+ difficulty;
+    	  
+          //Create file
           File file = new File(filename);
           file.createNewFile();
         
