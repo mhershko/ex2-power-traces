@@ -5,9 +5,10 @@ import java.util.Vector;
 
 public class ex02_M1 {
     public static void main(String[] args) throws IOException {
-          String user = "30563390";
-          int number_of_power_traces = 10;
-          String difficulty ="1";
+        String user = "30563390";
+        int number_of_power_traces = 10;
+        String difficulty ="1";
+        
         findStatics s= new findStatics(argsargs,difficulty,user,number_of_power_traces);
     }
 
