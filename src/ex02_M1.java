@@ -5,16 +5,16 @@ import java.util.Vector;
 
 public class ex02_M1 {
     public static void main(String[] args) throws IOException {
-        findStatics s= new findStatics(args);
+          String user = "30563390";
+          int number_of_power_traces = 10;
+          String difficulty ="1";
+        findStatics s= new findStatics(argsargs,difficulty,user,number_of_power_traces);
     }
 
     public static class findStatics{ 
     
-    	public findStatics(String[] args) throws IOException {		
-    	  String user = "30563390";
-          int number_of_power_traces = 10;
+    	public findStatics(String[] args,String difficulty, String user,int number_of_power_traces) throws IOException {		
           String filename =args[0] ;
-          String difficulty ="1";
           String serverURL = "http://aoi.ise.bgu.ac.il/encrypt?user=" + user + "&difficulty="+ difficulty;
     	  
           //Create file
