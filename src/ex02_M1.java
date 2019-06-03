@@ -1,27 +1,72 @@
 import java.io.*;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Vector;
 
 public class ex02_M1 {
     public static void main(String[] args) throws IOException {
-        String user = "30563390";
+        String user = "305706012";
         int number_of_power_traces = 10;
         String difficulty ="1";
         findStatics s= new findStatics(args,difficulty,user,number_of_power_traces);
+        findKey("power_traces.txt");
+
+
+    }
+
+    public static Map<Byte, Vector<Integer>> findKey(String filename) throws IOException {
+        Map<Byte, Vector<Integer>> hammingWeights = null;
+        BufferedReader br = new BufferedReader(new FileReader(filename));
+        String st;
+        while ((st = br.readLine()) != null) {
+            String[] parseString=st.split("\",\"leaks\":");
+            parseString=parseString[0].split("\"plaintext\":\"");
+            String plaintext = parseString[1];
+
+            Vector<Byte> bytes = new Vector<>();
+            for (int i = 0; i < plaintext.length(); i+=2){
+                String s1 = Character.toString(plaintext.charAt(i));
+                String s2 = Character.toString(plaintext.charAt(i+1));
+                bytes.add(Byte.parseByte(s1.concat(s2), 16));
+            }
+            hammingWeights =  calculate_hamming_weight(bytes);
+            Byte correct_byte = find_correct_byte(hammingWeights);
+        }
+        return hammingWeights;
+    }
+
+    // TODO - This method gets a map with byte as a possible part of the correct key, a vector of hamming weights and the leaks vector and return the correct byte
+    private static Byte find_correct_byte(Map<Byte, Vector<Integer>> hammingWeights //add here the leaks vector) {
+        Byte b = null;
+        return b;
+    }
+    // TODO - This method gets a vector of 16 bytes and returns the hamming weights of all the bytes with all possible keys
+    public static Map<Byte, Vector<Integer>> calculate_hamming_weight(Vector<Byte> bytes) {
+        Map<Byte, Vector<Integer>> hammingWeights = new HashMap<>();
+        byte b = 0x00;
+        while (b < 0xFF) {
+            for (int i = 0; i < bytes.size(); i++) {
+                int xor = bytes.get(i)^b;
+                System.out.println(xor);
+            }
+        }
+        return hammingWeights;
     }
 
     public static class findStatics{ 
     
-    	public findStatics(String[] args,String difficulty, String user,int number_of_power_traces) throws IOException {		
-          String filename =args[0] ;
+    	public findStatics(String[] args,String difficulty, String user,int number_of_power_traces) throws IOException {
+
+          String filename = args[0] ;
           String serverURL = "http://aoi.ise.bgu.ac.il/encrypt?user=" + user + "&difficulty="+ difficulty;
     	  
           //Create file
           File file = new File(filename);
           file.createNewFile();
         
-          download_power_traces(filename, serverURL, number_of_power_traces);
+          //download_power_traces(filename, serverURL, number_of_power_traces);
           Vector<Vector<Double>> leaks_vec = create_leaks_vector(filename, number_of_power_traces);
           
           Vector<Double> means =  calculate_means(leaks_vec);
