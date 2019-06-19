@@ -1,9 +1,11 @@
 import java.io.*;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
+import java.math.*;
 
 public class ex02_M1 {
 
@@ -26,147 +28,231 @@ public class ex02_M1 {
             0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
     };
 
+
     public static void main(String[] args) throws IOException {
-        String user = "305706012";
-        int number_of_power_traces = 10;
+        String user = "304858020";
+        int number_of_power_traces = 2;
         String difficulty ="1";
-        findStatics s= new findStatics(args,difficulty,user,number_of_power_traces);
-        findKey("power_traces.txt");
+        //findStatics s = new findStatics(args,difficulty,user,number_of_power_traces);
 
-
+        Vector<Integer> key = findKey("power_traces.txt", 3);
     }
 
-    public static Map<Integer, Vector<Integer>> findKey(String filename) throws IOException {
-        Map<Integer, Vector<Integer>> hammingWeights = null;
-        BufferedReader br = new BufferedReader(new FileReader(filename));
-        String st;
-        while ((st = br.readLine()) != null) {
-            String[] parseString=st.split("\",\"leaks\":");
-            parseString=parseString[0].split("\"plaintext\":\"");
-            String plaintext = parseString[1];
-            System.out.println(plaintext);
-
-            Vector<Integer> bytes = new Vector<>();
-            for (int i = 0; i < plaintext.length(); i+=2){
-                System.out.println("***** Byte #" + i + " *****");
-                String s1 = Character.toString(plaintext.charAt(i));
-                String s2 = Character.toString(plaintext.charAt(i+1));
-                bytes.add(Integer.parseInt(s1.concat(s2), 16));
-            }
-            hammingWeights =  calculate_hamming_weight(bytes);
-            //Byte correct_byte = find_correct_byte(hammingWeights);
-        }
-        return hammingWeights;
-    }
-
-    // TODO - This method gets a map with byte as a possible part of the correct key, a vector of hamming weights and the leaks vector and return the correct byte
-    private static Byte find_correct_byte(Map<Byte, Vector<Integer>> hammingWeights) //add here the leaks vector) {
-    {
-        Byte b = null;
-        return b;
-    }
-    // This method gets a vector of 16 bytes and returns the hamming weights of all the bytes with all possible keys
-    public static Map<Integer, Vector<Integer>> calculate_hamming_weight(Vector<Integer> bytes) {
-        Map<Integer, Vector<Integer>> hammingWeights = new HashMap<>();
+    public static Vector<Integer> findKey(String filename, int limit_power_traces) throws IOException {
+        GFG correlation = new GFG(limit_power_traces);
+        Vector<Integer> hammingWeights = null;
         int b = 0x00;
-        while (b < 0xFF) {
-            Vector<Integer> hammingweights_per_byte = new Vector<>();
-            for (int i = 0; i < bytes.size(); i++) {
-                System.out.println("Input byte = " + bytes.get(i).toString() + ", Hyp Key = " + b);
-                int xor_val = bytes.get(i)^b;
-                int high = xor_val >> 4;
-                int low = xor_val&0x0F;
-                int res = AesSbox[low+1 + 0xF*high];
-                System.out.println("Result = " + res);
-                int hamming_weight = res&0xFF;
-                hammingweights_per_byte.add(hamming_weight);
+        //while (b < 0xFF) {
+        while (b <= 0x00) {
+            BufferedReader br = new BufferedReader(new FileReader(filename));
+            String st;
+            int counter = 0;
+            while ((st = br.readLine()) != null && counter < limit_power_traces) {
+                String[] parseString1 = st.split("\",\"leaks\":\\[");
+                String[] parseString2 = parseString1[1].split("\\]");
+                parseString1 = parseString1[0].split("\"plaintext\":\"");
+
+                String[] traceValues = parseString2[0].split(",");
+                double[] traceVals = Arrays.asList(traceValues).stream().mapToDouble(Double::valueOf).toArray();
+                String plaintext = parseString1[1];
+
+                System.out.println("----------------" + plaintext + "----------------");
+
+                Vector<Integer> inputData = new Vector<>();
+                for (int i = 0; i < plaintext.length(); i += 2) {
+                    //System.out.println("***** Byte #" + i/2 + " *****");
+                    String s1 = Character.toString(plaintext.charAt(i));
+                    String s2 = Character.toString(plaintext.charAt(i + 1));
+                    inputData.add(Integer.parseInt(s1.concat(s2), 16));
+                }
+                hammingWeights = calculate_hamming_weight(inputData, b);
+                System.out.println("*******Byte = " + b + "******");
+                //System.out.println(hammingWeights);
+                correlation.add_trace(traceVals);
+                correlation.add_hamming(hammingWeights);
+                counter += 1;
             }
-            hammingWeights.put(b, hammingweights_per_byte);
-            b+=1;
+            correlation.calculate_correlation();
+            b += 1;
         }
         return hammingWeights;
     }
 
-    public static class findStatics{ 
-    
-    	public findStatics(String[] args,String difficulty, String user,int number_of_power_traces) throws IOException {
 
-          String filename = args[0] ;
-          String serverURL = "http://aoi.ise.bgu.ac.il/encrypt?user=" + user + "&difficulty="+ difficulty;
-    	  
-          //Create file
-          File file = new File(filename);
-          file.createNewFile();
-        
-          //download_power_traces(filename, serverURL, number_of_power_traces);
-          Vector<Vector<Double>> leaks_vec = create_leaks_vector(filename, number_of_power_traces);
-          
-          Vector<Double> means =  calculate_means(leaks_vec);
-          Vector<Double> vars =   calculate_vars(leaks_vec,means);
-  
-          System.out.println("Mean\tVariance"); // Print once at the start of your program and then
-          for (int i = 0; i < means.size(); i++) {
-              System.out.println(String.format("%.2f\t%.2f", means.get(i), vars.get(i)));
-          }
-    	}
-    
-    private static Vector<Double> calculate_means(Vector<Vector<Double>> leaks_vec) {
-        Vector<Double> means_vec = new Vector<>();
-        for(int i=0;i<leaks_vec.get(0).size();i++) {
-        	Double mean=0.0;
-        	for(int j=0;j<leaks_vec.size();j++) {
-        		mean+=leaks_vec.get(j).get(i);
-        	}
-        	mean/=leaks_vec.size();
-        	means_vec.add(mean);
+    // This method gets a vector of 16 bytes and returns the hamming weights of all the bytes with all possible keys
+    public static Vector<Integer> calculate_hamming_weight(Vector<Integer> inputData, int b) {
+        Vector<Integer> hammingweights_per_byte = new Vector<>();
+        for (int i = 0; i < inputData.size(); i++) {
+            //System.out.println("Input byte = " + inputData.get(i).toString() + ", Hyp Key = " + b);
+            int xor_val = inputData.get(i)^b;
+            int high = xor_val >> 4;
+            int low = xor_val&0x0F;
+            int res = AesSbox[low+1 + 0xF*high];
+            //System.out.println("Result = " + res);
+            hammingweights_per_byte.add(Integer.bitCount(res));
         }
-        return means_vec;
-    }
-    private static Vector<Double> calculate_vars(Vector<Vector<Double>> leaks_vec,Vector<Double> means) {
-        Vector<Double> vars_vec = new Vector<>();
-        for(int i=0;i<leaks_vec.get(0).size();i++) {
-        	Double var=0.0;
-        	for(int j=0;j<leaks_vec.size();j++) {
-        		var+=Math.pow(leaks_vec.get(j).get(i)-means.get(i), 2);
-        	}
-        	var/=leaks_vec.size();
-        	//double std = Math.sqrt(var);
-        	vars_vec.add(var);
-        }
-        return vars_vec;
+        return hammingweights_per_byte;
     }
 
-    public static void download_power_traces (String filename, String serverURL, int number_of_power_traces) throws IOException {
-        BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
-        for (int i = 0; i < number_of_power_traces; i++) {
-            URL oracle = new URL(serverURL);
-            URLConnection yc = oracle.openConnection();
-            BufferedReader in = new BufferedReader(new InputStreamReader(yc.getInputStream()));
-            writer.write(in.readLine()+"\n");
-            in.close();
-        }
-        writer.close();
-    }
-    public static Vector<Vector<Double>> create_leaks_vector(String filename, int number_of_power_traces) throws IOException {
-    	Vector<Vector<Double>> leaks_vec = new Vector<>();
-    	BufferedReader br = new BufferedReader(new FileReader(filename));
-    	for (int i = 0; i < number_of_power_traces; i++){
-    		String st;
-    		while ((st = br.readLine()) != null) {
-    		//	System.out.println(st);
-    			String[] parseString=st.split("\\[");
-    			parseString=parseString[1].split("\\]");
-    			String[] traceValues=parseString[0].split(",");
 
-    			Vector<Double> trace = new Vector<>();
-    			for(int j=0;j<traceValues.length;j++) {
-    				trace.add(Double.valueOf(traceValues[j]) );                   
-    			}
-    			leaks_vec.add(trace);
-    		}
-    	}
-    	br.close();
-    	return leaks_vec;
+    public static class findStatics{
+
+        public findStatics(String[] args,String difficulty, String user,int number_of_power_traces) throws IOException {
+            String filename = /*args[0]*/"test.txt";
+            String serverURL = "http://aoi.ise.bgu.ac.il/encrypt?user=" + user + "&difficulty="+ difficulty;
+
+            //Create file
+            File file = new File(filename);
+            file.createNewFile();
+
+            download_power_traces(filename, serverURL, number_of_power_traces);
+            Vector<Vector<Double>> leaks_vec = create_leaks_vector(filename, number_of_power_traces);
+
+            Vector<Double> means =  calculate_means(leaks_vec);
+            Vector<Double> vars =   calculate_vars(leaks_vec,means);
+
+            System.out.println("Mean\tVariance"); // Print once at the start of your program and then
+            for (int i = 0; i < means.size(); i++) {
+                System.out.println(String.format("%.2f\t%.2f", means.get(i), vars.get(i)));
+            }
+        }
+
+        private static Vector<Double> calculate_means(Vector<Vector<Double>> leaks_vec) {
+            Vector<Double> means_vec = new Vector<>();
+            for(int i=0;i<leaks_vec.get(0).size();i++) {
+                Double mean=0.0;
+                for(int j=0;j<leaks_vec.size();j++) {
+                    mean+=leaks_vec.get(j).get(i);
+                }
+                mean/=leaks_vec.size();
+                means_vec.add(mean);
+            }
+            return means_vec;
+        }
+        private static Vector<Double> calculate_vars(Vector<Vector<Double>> leaks_vec,Vector<Double> means) {
+            Vector<Double> vars_vec = new Vector<>();
+            for(int i=0;i<leaks_vec.get(0).size();i++) {
+                Double var=0.0;
+                for(int j=0;j<leaks_vec.size();j++) {
+                    var+=Math.pow(leaks_vec.get(j).get(i)-means.get(i), 2);
+                }
+                var/=leaks_vec.size();
+                //double std = Math.sqrt(var);
+                vars_vec.add(var);
+            }
+            return vars_vec;
+        }
+
+        public static void download_power_traces (String filename, String serverURL, int number_of_power_traces) throws IOException {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
+            for (int i = 0; i < number_of_power_traces; i++) {
+                URL oracle = new URL(serverURL);
+                URLConnection yc = oracle.openConnection();
+                BufferedReader in = new BufferedReader(new InputStreamReader(yc.getInputStream()));
+                writer.write(in.readLine()+"\n");
+                in.close();
+            }
+            writer.close();
+        }
+        public static Vector<Vector<Double>> create_leaks_vector(String filename, int number_of_power_traces) throws IOException {
+            Vector<Vector<Double>> leaks_vec = new Vector<>();
+            BufferedReader br = new BufferedReader(new FileReader(filename));
+            for (int i = 0; i < number_of_power_traces; i++){
+                String st;
+                while ((st = br.readLine()) != null) {
+                    //	System.out.println(st);
+                    String[] parseString=st.split("\\[");
+                    parseString=parseString[1].split("\\]");
+                    String[] traceValues=parseString[0].split(",");
+
+                    Vector<Double> trace = new Vector<>();
+                    for(int j=0;j<traceValues.length;j++) {
+                        trace.add(Double.valueOf(traceValues[j]) );
+                    }
+                    leaks_vec.add(trace);
+                }
+            }
+            br.close();
+            return leaks_vec;
+        }
     }
+
+    // JAVA Program to find correlation coefficient
+    public static class GFG {
+        Vector<Vector<Double>> traces_per_time = new Vector<>();;
+        Vector<Vector<Integer>> hamming_per_time = new Vector<>();;
+        // key = place in the correct key, value = correct byte
+        Map<Integer, Integer> order_of_correct_bytes  = new HashMap<>();
+        int num_of_traces;
+
+        public GFG(int num_of_traces){
+
+            this.num_of_traces = num_of_traces;
+
+            for (int i = 0; i < num_of_traces; i++){
+                Vector<Double> v1 = new Vector<>();
+                traces_per_time.add(v1);
+                Vector<Integer> v2 = new Vector<>();
+                hamming_per_time.add(v2);
+            }
+            // key = place in the correct key, value = correct byte
+            order_of_correct_bytes = new HashMap<>();
+        }
+
+        public void add_trace(double[] v){
+            int idx = 0;
+            for (int i = 0; i < num_of_traces; i++){
+                traces_per_time.get(i).add(v[idx]);
+                idx += 1;
+            }
+            System.out.println(traces_per_time);
+        }
+        public void add_hamming(Vector<Integer> v){
+            int idx = 0;
+            for (int i = 0; i < num_of_traces; i++){
+                hamming_per_time.get(i).add(v.get(idx));
+                idx += 1;
+            }
+            System.out.println(hamming_per_time);
+        }
+        public void calculate_correlation(){
+            int length = traces_per_time.get(0).size();
+            for (int i = 0; i < length; i++){
+                correlationCoefficient(traces_per_time.get(i), hamming_per_time.get(i), length);
+            }
+        }
+        // function that returns correlation coefficient.
+        float correlationCoefficient(Vector<Double> traces, Vector<Integer> hamming, int n)
+        {
+
+            double sum_X = 0, sum_Y = 0, sum_XY = 0;
+            double squareSum_X = 0, squareSum_Y = 0;
+
+            for (int i = 0; i < n; i++)
+            {
+                // sum of elements of array X.
+                sum_X = sum_X + traces.get(i);
+
+                // sum of elements of array Y.
+                sum_Y = sum_Y + hamming.get(i);
+
+                // sum of X[i] * Y[i].
+                sum_XY = sum_XY + traces.get(i) * hamming.get(i);
+
+                // sum of square of array elements.
+                squareSum_X = squareSum_X + traces.get(i) * traces.get(i);
+                squareSum_Y = squareSum_Y + hamming.get(i) * hamming.get(i);
+            }
+
+            // use formula for calculating correlation
+            // coefficient.
+            float corr = (float)(n * sum_XY - sum_X * sum_Y)/
+                    (float)(Math.sqrt((n * squareSum_X -
+                            sum_X * sum_X) * (n * squareSum_Y -
+                            sum_Y * sum_Y)));
+
+            System.out.println(corr);
+            return corr;
+        }
     }
 }
